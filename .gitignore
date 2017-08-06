@@ -1,0 +1,11 @@
+Library/
+ProjectSettings/
+Temp/
+Assets/Images/
+Assets/Materials/
+Assets/Scenes/
+
+*.meta
+.collabignore
+*.csproj
+*.sln
