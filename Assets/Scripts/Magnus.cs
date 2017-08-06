@@ -2,7 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 
-public class Magnus {
+public class Magnus : MonoBehaviour {
 	public Element element { get; private set; }
 	public int neutralAtk { get; private set; }
 	public int elementAtk { get; private set; }
