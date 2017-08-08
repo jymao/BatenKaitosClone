@@ -4,6 +4,7 @@ Temp/
 Assets/Images/
 Assets/Materials/
 Assets/Scenes/
+Assets/Prefabs/
 
 *.meta
 .collabignore
