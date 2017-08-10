@@ -1,10 +1,8 @@
 Library/
 ProjectSettings/
 Temp/
-Assets/Images/
-Assets/Materials/
+Assets/Resources/
 Assets/Scenes/
-Assets/Prefabs/
 
 *.meta
 .collabignore
