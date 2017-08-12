@@ -7,17 +7,42 @@ public class Hand : MonoBehaviour {
     private const float MOVE_DELAY = 0.125f;
     private float lastTimeMoved;
 
-    public List<Magnus> cards;
-    private Magnus currentMagnus;
+    private bool canSelect = false;
+
+    private List<GameObject> cards = new List<GameObject>();
+    private GameObject selectedMagnus;
     private int currentPosition = 0;
+    private int numCardsPlayed = 0;
+
+    public GameManager gameManager;
+    public Transform magnusHandSpace;
+    public Transform nextMagnusSpace;
+    public Transform currMagnusSpace;
+
+    public void ResetNumCardsPlayed() { numCardsPlayed = 0; }
+    public void SetCanSelect(bool b) { 
+        canSelect = b;
+        //Cursor becomes an hourglass if canSelect is false
+        if (canSelect) {
+            GetComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>("Images/cursor");
+        }
+        else {
+            GetComponent<SpriteRenderer>().sprite = Resources.Load<Sprite>("Images/hourglass");
+        }
+    }
 
 	// Use this for initialization
 	void Start() {
-        currentMagnus = cards[currentPosition];
-        if (currentMagnus != null) {
-            Transform cardGraphic = currentMagnus.transform.GetChild(0);
+        //draw new hand from deck
+        NewHand();
+
+        selectedMagnus = cards[currentPosition];
+        if (selectedMagnus != null) {
+            Transform cardGraphic = selectedMagnus.transform.GetChild(0);
             cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
         }
+
+        SetCanSelect(true);
 	}
 	
 	// Update is called once per frame
@@ -36,19 +61,113 @@ public class Hand : MonoBehaviour {
                 moveToPosition(currentPosition - 1);
             }
         }
+
+        if (Input.GetKeyDown(KeyCode.Space) && canSelect && numCardsPlayed < 9 && cards.Count != 0) {
+            ChooseCard();
+        }
+
 	}
 
-    void moveToPosition(int position) {
+    private void moveToPosition(int position) {
         Transform cardGraphic = null;
-        if (currentMagnus != null) {
-            cardGraphic = currentMagnus.transform.GetChild(0);
+        if (selectedMagnus != null) {
+            cardGraphic = selectedMagnus.transform.GetChild(0);
             cardGraphic.GetComponent<SpriteRenderer>().color = Color.white;
         }
         currentPosition = position;
-        currentMagnus = cards[currentPosition];
-        cardGraphic = currentMagnus.transform.GetChild(0);
+        selectedMagnus = cards[currentPosition];
+        cardGraphic = selectedMagnus.transform.GetChild(0);
         cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
-        transform.position = new Vector3(currentMagnus.transform.position.x, transform.position.y, transform.position.z);
+        transform.position = new Vector3(selectedMagnus.transform.position.x, transform.position.y, transform.position.z);
         lastTimeMoved = Time.time;
     }
+
+    public void NewHand() {
+        DrawCard();
+        for (int i = 0; i < 6; i++) {
+            ShiftCards(0, i);
+            DrawCard();
+        }
+
+        //restore previous card's sprite color and get proper position in new hand
+        moveToPosition(currentPosition);
+    }
+
+    public void DiscardHand() {
+        while (cards.Count > 0) {
+            gameManager.Discard(cards[0]);
+            cards.RemoveAt(0);
+        }
+    }
+
+    private bool DrawCard() {
+        GameObject card = gameManager.DrawCard();
+
+        if (card != null) {
+            cards.Add(card);
+            card.transform.position = magnusHandSpace.position;
+            return true;
+        }
+
+        return false;
+    }
+
+    private void ShiftCards(int start, int end) {
+        for (int i = start; i <= end; i++) {
+            Magnus magnusScript = cards[i].GetComponent<Magnus>();
+            cards[i].transform.position = cards[i].transform.position - new Vector3(magnusScript.GetWidth(), 0, 0);
+        }
+    }
+
+    private void ChooseCard() {
+        if (!gameManager.GetFirstMoveDone()) {
+            gameManager.SetFirstMoveDone(true);
+            gameManager.SetTimeProcessed();
+        }
+        numCardsPlayed++;
+
+        if (currMagnusSpace.childCount == 0) {
+            selectedMagnus.transform.position = currMagnusSpace.position;
+            selectedMagnus.transform.SetParent(currMagnusSpace, true);
+            selectedMagnus.transform.localScale = new Vector3(1,1,1);
+        }
+        else {
+            selectedMagnus.transform.position = nextMagnusSpace.position;
+            selectedMagnus.transform.SetParent(nextMagnusSpace, true);
+            selectedMagnus.transform.localScale = new Vector3(1, 1, 1);
+
+            SetCanSelect(false);
+        }
+        cards.RemoveAt(currentPosition);
+
+        //selected card not rightmost card in hand, shift cards on right normally and cursor position stays the same
+        if (currentPosition != cards.Count) {
+            ShiftCards(currentPosition, cards.Count - 1);
+            moveToPosition(currentPosition);
+        }
+
+        bool cardDrawn = DrawCard();
+
+        //cursor was rightmost, select newly drawn card
+        if (cardDrawn && currentPosition == cards.Count - 1) {
+            moveToPosition(currentPosition);
+        }
+
+        //cursor was rightmost and no new card drawn, move cursor left
+        if (!cardDrawn && currentPosition == cards.Count) {
+            //no more cards in hand
+            if (currentPosition == 0) {
+                if (selectedMagnus != null) {
+                    Transform cardGraphic = selectedMagnus.transform.GetChild(0);
+                    cardGraphic.GetComponent<SpriteRenderer>().color = Color.white;
+                }
+                //Hide cursor maybe?
+            }
+            else {
+                moveToPosition(currentPosition - 1);
+            }
+        }
+
+    }
+
 }

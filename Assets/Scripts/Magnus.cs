@@ -35,6 +35,24 @@ public class Magnus : MonoBehaviour {
     public int GetAtkCombo() { return atkCombo; }
     public int GetDefCombo() { return defCombo; }
     public Element GetElement() { return element; }
+    public float GetWidth() { 
+        Transform cardGraphic = transform.GetChild(0);
+        float width = cardGraphic.GetComponent<SpriteRenderer>().sprite.bounds.size.x * cardGraphic.localScale.x;
+
+        if (transform.parent != null) {
+            width *= transform.parent.localScale.x;
+        }
+        return width; 
+    }
+    public float GetHeight() {
+        Transform cardGraphic = transform.GetChild(0);
+        float height = cardGraphic.GetComponent<SpriteRenderer>().sprite.bounds.size.y * cardGraphic.localScale.y;
+
+        if (transform.parent != null) {
+            height *= transform.parent.localScale.y;
+        }
+        return height;
+    }
 
     public void SetName(string s) { magnusName = s; }
     public void SetIsAtk(bool b) { isAtk = b; }
