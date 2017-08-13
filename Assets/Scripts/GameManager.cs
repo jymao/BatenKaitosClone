@@ -19,6 +19,7 @@ public class GameManager : MonoBehaviour {
     private bool isPlayerTurn = true;
     private bool turnStarted = false;
     private bool turnDone = false;
+    private bool shuffleTurn = false;
 
     private string[] magnusList;
     private List<GameObject> deck = new List<GameObject>();
@@ -32,6 +33,8 @@ public class GameManager : MonoBehaviour {
     public Transform nextMagnusSpace;
     public Transform timeLimit;
     public Transform deckCapacityBar;
+    public Transform message;
+    public Transform battleResults;
 
     public bool GetIsPlayerTurn() { return isPlayerTurn; }
     public bool GetFirstMoveDone() { return firstMoveDone; }
@@ -57,21 +60,19 @@ public class GameManager : MonoBehaviour {
         deck.Add(CreateMagnus("Gladius"));
         deck.Add(CreateMagnus("Water_Blade"));
 
-        //for (int i = 0; i < 10; i++) {
-        //    deck.Add(CreateMagnus("Cherries"));
-        //}
+        for (int i = 0; i < 10; i++) {
+            deck.Add(CreateMagnus("Cherries"));
+        }
 
         ShuffleDeck();
+        StartCoroutine(StartTurn());
     }
 
     // Update is called once per frame
     void Update() {
 
-        if (Input.GetKeyDown(KeyCode.F)) {
-            turnStarted = true;
-        }
-        if (Input.GetKeyDown(KeyCode.Q)) {
-            StartTurn();
+        if (Input.GetKeyDown(KeyCode.Space) && battleResults.gameObject.activeInHierarchy) {
+            StartCoroutine(StartTurn());
         }
 
         if (turnStarted && isPlayerTurn && !firstMoveDone) {
@@ -135,7 +136,7 @@ public class GameManager : MonoBehaviour {
         return words[2];
     }
 
-    //Shuffle Magnus deck using the Fisher-Yates shuffle algorithmm
+    //Shuffle Magnus deck using the Fisher-Yates shuffle algorithm
     private void ShuffleDeck() {
         int count = deck.Count;
         while (count > 1) {
@@ -164,7 +165,18 @@ public class GameManager : MonoBehaviour {
 
     public void Discard(GameObject card) {
         graveyard.Add(card);
+        card.GetComponent<Magnus>().Show(); //card was invisible due to hand being hidden
         card.transform.position = deckSpace.position;
+    }
+
+    private void DiscardPlayedMagnus() {
+        while (playedMagnusSpace.childCount > 0) {
+            GameObject card = playedMagnusSpace.GetChild(0).gameObject;
+            card.GetComponent<Magnus>().Reset();
+            card.transform.SetParent(null, true);
+            card.transform.localScale = new Vector3(1, 1, 1);
+            Discard(card);
+        }
     }
 
     private void ReInitDeck() {
@@ -208,32 +220,56 @@ public class GameManager : MonoBehaviour {
     private void EndTurn() {
         turnDone = true;
 
-        //Discard played Magnus
-        while (playedMagnusSpace.childCount > 0) {
-            GameObject card = playedMagnusSpace.GetChild(0).gameObject;
-            card.transform.SetParent(null, true);
-            card.transform.localScale = new Vector3(1, 1, 1);
-            Discard(card);
-        }
-
+        handCursor.Hide();
+        message.gameObject.SetActive(false);
+        deckCapacityBar.gameObject.SetActive(false);
+        timeLimit.gameObject.SetActive(false);
         handCursor.SetCanSelect(false);
         turnStarted = false;
+
+        //prevents card from being selected when trying to close results screen
+        handCursor.SetTurnEnded(true);
+
+        //show results for battle turns
+        if (!shuffleTurn) {
+            battleResults.gameObject.SetActive(true);
+        }
     }
 
-    private void StartTurn() {
+    private IEnumerator StartTurn() {
+        DiscardPlayedMagnus();
+        battleResults.gameObject.SetActive(false);
+
+        //No cards in deck, spend a turn reshuffling the deck
         if (deck.Count == 0) {
+            shuffleTurn = true;
+            message.gameObject.SetActive(true);
+            message.GetComponent<Text>().text = "Shuffling the Deck";
+            yield return new WaitForSeconds(2f);
+
             EndTurn();
+            handCursor.SetTurnEnded(false); //no results screen for shuffling turn, so cancel extra button input requirement to select a card
             handCursor.DiscardHand();
             ReInitDeck();
             ShuffleDeck();
             handCursor.NewHand();
-            return;
-        }
+            handCursor.Hide();
 
-        firstMoveDone = false;
-        firstMoveTimeLimit = 5f;
-        turnDone = false;
-        handCursor.SetCanSelect(true);
-        handCursor.ResetNumCardsPlayed();
+            StartCoroutine(StartTurn());
+            shuffleTurn = false;
+        }
+        //Normal battle turn
+        else {
+            handCursor.Show();
+            deckCapacityBar.gameObject.SetActive(true);
+            firstMoveDone = false;
+            firstMoveTimeLimit = 5f;
+            timeLimit.gameObject.SetActive(true);
+            timeLimit.GetChild(1).GetComponent<Text>().text = "05.0";
+            turnStarted = true;
+            turnDone = false;
+            handCursor.SetCanSelect(true);
+            handCursor.ResetNumCardsPlayed();
+        }
     }
 }

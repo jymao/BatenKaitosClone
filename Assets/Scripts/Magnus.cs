@@ -123,4 +123,32 @@ public class Magnus : MonoBehaviour {
             transform.GetChild(i + 1).GetComponent<SpriteRenderer>().sprite = s[spiritNumber - 1];
         }
     }
+
+    public void ChooseNumber(int spiritNumberIndex) {
+        chosenNumberIndex = spiritNumberIndex;
+        for (int i = 1; i < transform.childCount; i++) {
+            if (i != chosenNumberIndex + 1) {
+                transform.GetChild(i).GetComponent<SpriteRenderer>().enabled = false;
+            }
+        }
+    }
+
+    public void Reset() {
+        chosenNumberIndex = 0;
+        for (int i = 1; i < transform.childCount; i++) {
+            transform.GetChild(i).GetComponent<SpriteRenderer>().enabled = true;
+        }
+    }
+
+    public void Hide() {
+        for (int i = 0; i < transform.childCount; i++) {
+            transform.GetChild(i).GetComponent<SpriteRenderer>().enabled = false;
+        }
+    }
+
+    public void Show() {
+        for (int i = 0; i < transform.childCount; i++) {
+            transform.GetChild(i).GetComponent<SpriteRenderer>().enabled = true;
+        }
+    }
 }

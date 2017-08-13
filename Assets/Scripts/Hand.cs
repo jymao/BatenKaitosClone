@@ -1,6 +1,7 @@
 ﻿using System.Collections;
 using System.Collections.Generic;
 using UnityEngine;
+using UnityEngine.UI;
 
 public class Hand : MonoBehaviour {
 
@@ -8,6 +9,8 @@ public class Hand : MonoBehaviour {
     private float lastTimeMoved;
 
     private bool canSelect = false;
+    private bool canMove = true;
+    private bool turnEnded = false; //prevents card from being selected when trying to close results screen
 
     private List<GameObject> cards = new List<GameObject>();
     private GameObject selectedMagnus;
@@ -15,10 +18,12 @@ public class Hand : MonoBehaviour {
     private int numCardsPlayed = 0;
 
     public GameManager gameManager;
+    public Transform bottomBar;
     public Transform magnusHandSpace;
     public Transform nextMagnusSpace;
     public Transform currMagnusSpace;
 
+    public void SetTurnEnded(bool b) { turnEnded = b; }
     public void ResetNumCardsPlayed() { numCardsPlayed = 0; }
     public void SetCanSelect(bool b) { 
         canSelect = b;
@@ -42,7 +47,7 @@ public class Hand : MonoBehaviour {
             cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
         }
 
-        SetCanSelect(true);
+        //SetCanSelect(true);
 	}
 	
 	// Update is called once per frame
@@ -53,7 +58,7 @@ public class Hand : MonoBehaviour {
             lastTimeMoved = 0;
         }
 
-        if (Time.time - lastTimeMoved >= MOVE_DELAY) {
+        if (canMove && Time.time - lastTimeMoved >= MOVE_DELAY) {
             if (inputX > 0 && currentPosition < cards.Count - 1) {
                 moveToPosition(currentPosition + 1);
             }
@@ -63,7 +68,12 @@ public class Hand : MonoBehaviour {
         }
 
         if (Input.GetKeyDown(KeyCode.Space) && canSelect && numCardsPlayed < 9 && cards.Count != 0) {
-            ChooseCard();
+            if (!turnEnded) {
+                ChooseCard();
+            }
+            else {
+                turnEnded = false;
+            }
         }
 
 	}
@@ -76,6 +86,7 @@ public class Hand : MonoBehaviour {
         }
         currentPosition = position;
         selectedMagnus = cards[currentPosition];
+        SetDescription(selectedMagnus);
         cardGraphic = selectedMagnus.transform.GetChild(0);
         cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
         transform.position = new Vector3(selectedMagnus.transform.position.x, transform.position.y, transform.position.z);
@@ -126,6 +137,8 @@ public class Hand : MonoBehaviour {
         }
         numCardsPlayed++;
 
+        selectedMagnus.GetComponent<Magnus>().ChooseNumber(0);
+
         if (currMagnusSpace.childCount == 0) {
             selectedMagnus.transform.position = currMagnusSpace.position;
             selectedMagnus.transform.SetParent(currMagnusSpace, true);
@@ -157,10 +170,12 @@ public class Hand : MonoBehaviour {
         if (!cardDrawn && currentPosition == cards.Count) {
             //no more cards in hand
             if (currentPosition == 0) {
+                //Revert chosen card's color
                 if (selectedMagnus != null) {
                     Transform cardGraphic = selectedMagnus.transform.GetChild(0);
                     cardGraphic.GetComponent<SpriteRenderer>().color = Color.white;
                 }
+                SetDescription(null);
                 //Hide cursor maybe?
             }
             else {
@@ -170,4 +185,51 @@ public class Hand : MonoBehaviour {
 
     }
 
+    private void SetDescription(GameObject card) {
+        if (card != null) {
+            Magnus cardScript = card.GetComponent<Magnus>();
+            string magnusName = cardScript.GetName().Replace("_", " ");
+            string elementStat = cardScript.GetElementStat().ToString();
+            string totalStat = (cardScript.GetNeutralStat() + cardScript.GetElementStat()).ToString();
+            string element = cardScript.GetElement().ToString();
+
+            string effect = "ATK/DEF ";
+            if (cardScript.GetIsHeal()) {
+                effect = "Heals " + totalStat + " HP";
+            }
+            else {
+                if (element == "Neutral") {
+                    effect += totalStat;
+                }
+                else {
+                    effect += totalStat + " (" + element + " " + elementStat + ")";
+                }
+            }
+
+            bottomBar.GetChild(1).GetComponent<Text>().text = magnusName;
+            bottomBar.GetChild(2).GetComponent<Text>().text = effect;
+        }
+        else {
+            bottomBar.GetChild(1).GetComponent<Text>().text = "";
+            bottomBar.GetChild(2).GetComponent<Text>().text = "";
+        }
+    }
+
+    public void Hide() {
+        GetComponent<SpriteRenderer>().enabled = false;
+        bottomBar.gameObject.SetActive(false);
+        canMove = false;
+        for (int i = 0; i < cards.Count; i++) {
+            cards[i].GetComponent<Magnus>().Hide();
+        }
+    }
+
+    public void Show() {
+        GetComponent<SpriteRenderer>().enabled = true;
+        bottomBar.gameObject.SetActive(true);
+        canMove = true;
+        for (int i = 0; i < cards.Count; i++) {
+            cards[i].GetComponent<Magnus>().Show();
+        }
+    }
 }
