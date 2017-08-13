@@ -25,6 +25,8 @@ public class Magnus : MonoBehaviour {
     private bool isValid = true; //choosing wrong type of magnus in atk/def phase (i.e. throwing the magnus away)
 
     //Getters, Setters
+    public int GetSpiritNumber(int index) { return spiritNumbers[index]; }
+    public int GetSpiritNumberCount() { return spiritNumbers.Count; }
     public string GetName() { return magnusName; }
     public bool GetIsAtk() { return isAtk; }
     public bool GetIsDef() { return isDef; }

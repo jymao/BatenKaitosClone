@@ -36,8 +36,7 @@ public class Hand : MonoBehaviour {
         }
     }
 
-	// Use this for initialization
-	void Start() {
+    public void initialize() {
         //draw new hand from deck
         NewHand();
 
@@ -69,13 +68,30 @@ public class Hand : MonoBehaviour {
 
         if (Input.GetKeyDown(KeyCode.Space) && canSelect && numCardsPlayed < 9 && cards.Count != 0) {
             if (!turnEnded) {
-                ChooseCard();
+                ChooseCard(0);
             }
             else {
                 turnEnded = false;
             }
         }
 
+        if (canSelect && numCardsPlayed < 9 && cards.Count != 0) {
+            if (!turnEnded) {
+                
+                int spiritNumberCount = selectedMagnus.GetComponent<Magnus>().GetSpiritNumberCount();
+                if (Input.GetKeyDown(KeyCode.Alpha1)) {
+                    ChooseCard(0);
+                } else if (Input.GetKeyDown(KeyCode.Alpha2) && spiritNumberCount >= 2) {
+                    ChooseCard(1);
+                } else if (Input.GetKeyDown(KeyCode.Alpha3) && spiritNumberCount >= 3) {
+                    ChooseCard(2);
+                } else if (Input.GetKeyDown(KeyCode.Alpha4) && spiritNumberCount == 4) {
+                    ChooseCard(3);
+                }
+            } else {
+                turnEnded = false;
+            }
+        }
 	}
 
     private void moveToPosition(int position) {
@@ -130,14 +146,16 @@ public class Hand : MonoBehaviour {
         }
     }
 
-    private void ChooseCard() {
+    private void ChooseCard(int spiritNumberIndex) {
         if (!gameManager.GetFirstMoveDone()) {
             gameManager.SetFirstMoveDone(true);
             gameManager.SetTimeProcessed();
         }
         numCardsPlayed++;
 
-        selectedMagnus.GetComponent<Magnus>().ChooseNumber(0);
+        Magnus magnus = selectedMagnus.GetComponent<Magnus>();
+        magnus.ChooseNumber(spiritNumberIndex);
+        gameManager.playMagnus(new PlayedMagnus(magnus, magnus.GetSpiritNumber(spiritNumberIndex)));
 
         if (currMagnusSpace.childCount == 0) {
             selectedMagnus.transform.position = currMagnusSpace.position;

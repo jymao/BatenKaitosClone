@@ -6,8 +6,9 @@ using System;
 
 public class GameManager : MonoBehaviour {
 
+    public float turnTimeLimit = 30f;
     private bool firstMoveDone = false;
-    private float firstMoveTimeLimit = 5f;
+    private float firstMoveTimeLimit = 30f;
     private const float TIME_LIMIT_INTERVAL = 0.1f;
     private float lastTimeInterval = 0;
 
@@ -24,6 +25,7 @@ public class GameManager : MonoBehaviour {
     private string[] magnusList;
     private List<GameObject> deck = new List<GameObject>();
     private List<GameObject> graveyard = new List<GameObject>();
+    private List<PlayedMagnus> playedMagnus = new List<PlayedMagnus>();
 
     public GameObject magnusPrefab;
     public Hand handCursor;
@@ -35,6 +37,8 @@ public class GameManager : MonoBehaviour {
     public Transform deckCapacityBar;
     public Transform message;
     public Transform battleResults;
+    public Transform prizeArea;
+    public Transform prizeElementPrefab;
 
     public bool GetIsPlayerTurn() { return isPlayerTurn; }
     public bool GetFirstMoveDone() { return firstMoveDone; }
@@ -42,6 +46,7 @@ public class GameManager : MonoBehaviour {
     public void SetFirstMoveDone(bool b) { firstMoveDone = b; }
     public void SetTurnStarted(bool b) { turnStarted = b; }
     public void SetTimeProcessed() { lastTimeProcessed = Time.time; }
+    public void playMagnus(PlayedMagnus magnus) { playedMagnus.Add(magnus); }
 
     // Use this for initialization
     void Start() {
@@ -66,6 +71,8 @@ public class GameManager : MonoBehaviour {
 
         ShuffleDeck();
         StartCoroutine(StartTurn());
+
+        handCursor.initialize();
     }
 
     // Update is called once per frame
@@ -198,10 +205,10 @@ public class GameManager : MonoBehaviour {
             nextMagnus.transform.SetParent(currMagnusSpace, true);
             nextMagnus.transform.position = currMagnusSpace.position;
         }
+
         //no more cards left in queue, end turn
         if (currMagnusSpace.childCount == 0) {
             EndTurn();
-            //Invoke("EndTurn", 1);
         }
     }
 
@@ -218,6 +225,8 @@ public class GameManager : MonoBehaviour {
     }
 
     private void EndTurn() {
+        HandlePrizes();
+
         turnDone = true;
 
         handCursor.Hide();
@@ -234,6 +243,22 @@ public class GameManager : MonoBehaviour {
         if (!shuffleTurn) {
             battleResults.gameObject.SetActive(true);
         }
+    }
+
+    private void HandlePrizes() {
+        foreach (Transform child in prizeArea) {
+            Destroy(child.gameObject);
+        }
+        List<Prize> prizes = PrizePercentageCalculator.instance.calculateBonus(playedMagnus);
+        foreach (Prize prize in prizes) {
+            Transform element = Instantiate(prizeElementPrefab, prizeArea);
+            element.Find("PrizeName").GetComponent<Text>().text = prize.name;
+            // TODO: Make applying offense or defense configurable. For now, just display offense
+            element.Find("PrizePercentage").GetComponent<Text>().text = "+" + (prize.offense * 100 - 100) + "%";
+        }
+        playedMagnus.Clear();
+
+        // TODO: use prize multipliers from above to apply damage bonus
     }
 
     private IEnumerator StartTurn() {
@@ -263,9 +288,9 @@ public class GameManager : MonoBehaviour {
             handCursor.Show();
             deckCapacityBar.gameObject.SetActive(true);
             firstMoveDone = false;
-            firstMoveTimeLimit = 5f;
+            firstMoveTimeLimit = turnTimeLimit;
             timeLimit.gameObject.SetActive(true);
-            timeLimit.GetChild(1).GetComponent<Text>().text = "05.0";
+            timeLimit.GetChild(1).GetComponent<Text>().text = "30.0";
             turnStarted = true;
             turnDone = false;
             handCursor.SetCanSelect(true);
