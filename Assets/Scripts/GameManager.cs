@@ -26,6 +26,7 @@ public class GameManager : MonoBehaviour {
     private string[] magnusList;
     private List<GameObject> deck = new List<GameObject>();
     private List<GameObject> graveyard = new List<GameObject>();
+    private List<PlayedMagnus> playedMagnus = new List<PlayedMagnus>();
 
     public GameObject magnusPrefab;
     public GameObject enemyMagnusPrefab;
@@ -40,6 +41,8 @@ public class GameManager : MonoBehaviour {
     public Transform deckCapacityBar;
     public Transform message;
     public Transform battleResults;
+    public Transform prizeArea;
+    public Transform prizeElementPrefab;
 
     public bool GetIsPlayerTurn() { return isPlayerTurn; }
     public bool GetFirstMoveDone() { return firstMoveDone; }
@@ -48,12 +51,14 @@ public class GameManager : MonoBehaviour {
     public void SetFirstMoveDone(bool b) { firstMoveDone = b; }
     public void SetTurnStarted(bool b) { turnStarted = b; }
     public void SetTimeProcessed() { lastTimeProcessed = Time.time; }
+    public void PlayMagnus(PlayedMagnus magnus) { playedMagnus.Add(magnus); }
 
     // Use this for initialization
     void Start() {
         TextAsset magnusListAsset = Resources.Load<TextAsset>("MagnusList");
 
         string[] newline = { Environment.NewLine };
+        //char[] newline = { '\n' };
         magnusList = magnusListAsset.text.Split(newline, StringSplitOptions.RemoveEmptyEntries);
 
         deck.Add(CreateMagnus("Beer"));
@@ -72,6 +77,8 @@ public class GameManager : MonoBehaviour {
 
         ShuffleDeck();
         StartCoroutine(StartTurn());
+
+        handCursor.Initialize();
     }
 
     // Update is called once per frame
@@ -126,7 +133,7 @@ public class GameManager : MonoBehaviour {
         Magnus magnusScript = magnus.GetComponent<Magnus>();
 
         for (int i = 0; i < magnusList.Length; i++) {
-
+            
             if (magnusList[i] == name) {
                 magnusScript.SetName(name);
                 magnusScript.SetIsAtk(Convert.ToBoolean(GetPropertyValue(magnusList[++i])));
@@ -282,6 +289,8 @@ public class GameManager : MonoBehaviour {
     }
 
     private void EndTurn() {
+        HandlePrizes();
+
         turnDone = true;
 
         handCursor.Hide();
@@ -300,6 +309,22 @@ public class GameManager : MonoBehaviour {
         }
 
         isPlayerTurn = !isPlayerTurn;
+    }
+
+    private void HandlePrizes() {
+        foreach (Transform child in prizeArea) {
+            Destroy(child.gameObject);
+        }
+        List<Prize> prizes = PrizePercentageCalculator.instance.CalculateBonus(playedMagnus);
+        foreach (Prize prize in prizes) {
+            Transform element = Instantiate(prizeElementPrefab, prizeArea);
+            element.Find("PrizeName").GetComponent<Text>().text = prize.name;
+            // TODO: Make applying offense or defense configurable. For now, just display offense
+            element.Find("PrizePercentage").GetComponent<Text>().text = "+" + (prize.offense * 100 - 100) + "%";
+        }
+        playedMagnus.Clear();
+
+        // TODO: use prize multipliers from above to apply damage bonus
     }
 
     private IEnumerator StartTurn() {

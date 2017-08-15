@@ -36,8 +36,7 @@ public class Hand : MonoBehaviour {
         }
     }
 
-	// Use this for initialization
-	void Start() {
+    public void Initialize() {
         //draw new hand from deck
         NewHand();
 
@@ -47,7 +46,6 @@ public class Hand : MonoBehaviour {
             cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
         }
 
-        //SetCanSelect(true);
 	}
 	
 	// Update is called once per frame
@@ -67,17 +65,25 @@ public class Hand : MonoBehaviour {
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && canSelect && cards.Count != 0) {
+        if (canSelect && cards.Count != 0) {
             if ((gameManager.GetIsPlayerTurn() && numCardsPlayed < 9) || (!gameManager.GetIsPlayerTurn() && gameManager.GetEnemyNumAttacks() > 0)) {
                 if (!turnEnded) {
-                    ChooseCard();
+                    int spiritNumberCount = selectedMagnus.GetComponent<Magnus>().GetSpiritNumberCount();
+                    if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Space)) {
+                        ChooseCard(0);
+                    } else if (Input.GetKeyDown(KeyCode.Alpha2) && spiritNumberCount >= 2) {
+                        ChooseCard(1);
+                    } else if (Input.GetKeyDown(KeyCode.Alpha3) && spiritNumberCount >= 3) {
+                        ChooseCard(2);
+                    } else if (Input.GetKeyDown(KeyCode.Alpha4) && spiritNumberCount == 4) {
+                        ChooseCard(3);
+                    }
                 }
                 else {
                     turnEnded = false;
                 }
             }
         }
-
 	}
 
     private void moveToPosition(int position) {
@@ -132,14 +138,16 @@ public class Hand : MonoBehaviour {
         }
     }
 
-    private void ChooseCard() {
+    private void ChooseCard(int spiritNumberIndex) {
         if (!gameManager.GetFirstMoveDone()) {
             gameManager.SetFirstMoveDone(true);
             gameManager.SetTimeProcessed();
         }
         numCardsPlayed++;
 
-        selectedMagnus.GetComponent<Magnus>().ChooseNumber(0);
+        Magnus magnus = selectedMagnus.GetComponent<Magnus>();
+        magnus.ChooseNumber(spiritNumberIndex);
+        gameManager.PlayMagnus(new PlayedMagnus(magnus, magnus.GetSpiritNumber(spiritNumberIndex)));
 
         Transform playerCurrMagnus = currMagnusSpace.GetChild(0);
         if (playerCurrMagnus.childCount == 0) {
