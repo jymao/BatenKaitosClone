@@ -67,12 +67,14 @@ public class Hand : MonoBehaviour {
             }
         }
 
-        if (Input.GetKeyDown(KeyCode.Space) && canSelect && numCardsPlayed < 9 && cards.Count != 0) {
-            if (!turnEnded) {
-                ChooseCard();
-            }
-            else {
-                turnEnded = false;
+        if (Input.GetKeyDown(KeyCode.Space) && canSelect && cards.Count != 0) {
+            if ((gameManager.GetIsPlayerTurn() && numCardsPlayed < 9) || (!gameManager.GetIsPlayerTurn() && gameManager.GetEnemyNumAttacks() > 0)) {
+                if (!turnEnded) {
+                    ChooseCard();
+                }
+                else {
+                    turnEnded = false;
+                }
             }
         }
 
@@ -139,9 +141,10 @@ public class Hand : MonoBehaviour {
 
         selectedMagnus.GetComponent<Magnus>().ChooseNumber(0);
 
-        if (currMagnusSpace.childCount == 0) {
+        Transform playerCurrMagnus = currMagnusSpace.GetChild(0);
+        if (playerCurrMagnus.childCount == 0) {
             selectedMagnus.transform.position = currMagnusSpace.position;
-            selectedMagnus.transform.SetParent(currMagnusSpace, true);
+            selectedMagnus.transform.SetParent(playerCurrMagnus, true);
             selectedMagnus.transform.localScale = new Vector3(1,1,1);
         }
         else {
