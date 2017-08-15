@@ -41,8 +41,10 @@ public class Magnus : MonoBehaviour {
         Transform cardGraphic = transform.GetChild(0);
         float width = cardGraphic.GetComponent<SpriteRenderer>().sprite.bounds.size.x * cardGraphic.localScale.x;
 
-        if (transform.parent != null) {
-            width *= transform.parent.localScale.x;
+        Transform ancestor = transform.parent;
+        while (ancestor != null) {
+            width *= ancestor.localScale.x;
+            ancestor = ancestor.parent;
         }
         return width; 
     }
@@ -50,8 +52,10 @@ public class Magnus : MonoBehaviour {
         Transform cardGraphic = transform.GetChild(0);
         float height = cardGraphic.GetComponent<SpriteRenderer>().sprite.bounds.size.y * cardGraphic.localScale.y;
 
-        if (transform.parent != null) {
-            height *= transform.parent.localScale.y;
+        Transform ancestor = transform.parent;
+        while (ancestor != null) {
+            height *= ancestor.localScale.y;
+            ancestor = ancestor.parent;
         }
         return height;
     }

@@ -6,9 +6,8 @@ using System;
 
 public class GameManager : MonoBehaviour {
 
-    public float turnTimeLimit = 30f;
     private bool firstMoveDone = false;
-    private float firstMoveTimeLimit = 30f;
+    private float firstMoveTimeLimit = 5f;
     private const float TIME_LIMIT_INTERVAL = 0.1f;
     private float lastTimeInterval = 0;
 
@@ -22,12 +21,17 @@ public class GameManager : MonoBehaviour {
     private bool turnDone = false;
     private bool shuffleTurn = false;
 
+    private int enemyNumAttacks = 0;
+
     private string[] magnusList;
     private List<GameObject> deck = new List<GameObject>();
     private List<GameObject> graveyard = new List<GameObject>();
     private List<PlayedMagnus> playedMagnus = new List<PlayedMagnus>();
 
     public GameObject magnusPrefab;
+    public GameObject enemyMagnusPrefab;
+
+    public Enemy enemy;
     public Hand handCursor;
     public Transform deckSpace;
     public Transform playedMagnusSpace;
@@ -42,17 +46,19 @@ public class GameManager : MonoBehaviour {
 
     public bool GetIsPlayerTurn() { return isPlayerTurn; }
     public bool GetFirstMoveDone() { return firstMoveDone; }
+    public int GetEnemyNumAttacks() { return enemyNumAttacks; }
 
     public void SetFirstMoveDone(bool b) { firstMoveDone = b; }
     public void SetTurnStarted(bool b) { turnStarted = b; }
     public void SetTimeProcessed() { lastTimeProcessed = Time.time; }
-    public void playMagnus(PlayedMagnus magnus) { playedMagnus.Add(magnus); }
+    public void PlayMagnus(PlayedMagnus magnus) { playedMagnus.Add(magnus); }
 
     // Use this for initialization
     void Start() {
         TextAsset magnusListAsset = Resources.Load<TextAsset>("MagnusList");
 
         string[] newline = { Environment.NewLine };
+        //char[] newline = { '\n' };
         magnusList = magnusListAsset.text.Split(newline, StringSplitOptions.RemoveEmptyEntries);
 
         deck.Add(CreateMagnus("Beer"));
@@ -72,7 +78,7 @@ public class GameManager : MonoBehaviour {
         ShuffleDeck();
         StartCoroutine(StartTurn());
 
-        handCursor.initialize();
+        handCursor.Initialize();
     }
 
     // Update is called once per frame
@@ -82,28 +88,42 @@ public class GameManager : MonoBehaviour {
             StartCoroutine(StartTurn());
         }
 
-        if (turnStarted && isPlayerTurn && !firstMoveDone) {
-            if (Time.time - lastTimeInterval > TIME_LIMIT_INTERVAL && firstMoveTimeLimit >= 0.1) {
-                firstMoveTimeLimit -= 0.1f;
-                timeLimit.GetChild(1).GetComponent<Text>().text = "0" + firstMoveTimeLimit.ToString("0.0");
-                lastTimeInterval = Time.time;
+        if (isPlayerTurn) {
+            if (turnStarted && !firstMoveDone) {
+                if (Time.time - lastTimeInterval > TIME_LIMIT_INTERVAL && firstMoveTimeLimit >= 0.1) {
+                    firstMoveTimeLimit -= 0.1f;
+                    timeLimit.GetChild(1).GetComponent<Text>().text = "0" + firstMoveTimeLimit.ToString("0.0");
+                    lastTimeInterval = Time.time;
 
-                //if timer runs out, end turn
-                if (firstMoveTimeLimit < 0.1) {
-                    EndTurn();
+                    //if timer runs out, end turn
+                    if (firstMoveTimeLimit < 0.1) {
+                        EndTurn();
+                    }
+                }
+            }
+            else if (firstMoveDone) {
+                timeLimit.gameObject.SetActive(false);
+            }
+
+            //Process attacks
+            if (firstMoveDone && !turnDone) {
+                if (Time.time - lastTimeProcessed > CARD_DELAY) {
+                    handCursor.SetCanSelect(true);
+                    ProcessMagnus();
+                    lastTimeProcessed = Time.time;
                 }
             }
         }
-        else if (isPlayerTurn && firstMoveDone) {
-            timeLimit.gameObject.SetActive(false);
-        }
-
-        //Process attacks
-        if (firstMoveDone && !turnDone) {
-            if (Time.time - lastTimeProcessed > CARD_DELAY) {
-                handCursor.SetCanSelect(true);
-                ProcessMagnus();
-                lastTimeProcessed = Time.time;
+        else {
+            if (turnStarted && !turnDone) {
+                if (Time.time - lastTimeProcessed > CARD_DELAY) {
+                    if (enemyNumAttacks > 0) {
+                        EnemyAttack();
+                    }
+                    handCursor.SetCanSelect(true);
+                    ProcessMagnus();
+                    lastTimeProcessed = Time.time;
+                }
             }
         }
     }
@@ -113,7 +133,7 @@ public class GameManager : MonoBehaviour {
         Magnus magnusScript = magnus.GetComponent<Magnus>();
 
         for (int i = 0; i < magnusList.Length; i++) {
-
+            
             if (magnusList[i] == name) {
                 magnusScript.SetName(name);
                 magnusScript.SetIsAtk(Convert.ToBoolean(GetPropertyValue(magnusList[++i])));
@@ -177,13 +197,24 @@ public class GameManager : MonoBehaviour {
     }
 
     private void DiscardPlayedMagnus() {
-        while (playedMagnusSpace.childCount > 0) {
-            GameObject card = playedMagnusSpace.GetChild(0).gameObject;
+        Transform playerPlayedMagnus = playedMagnusSpace.GetChild(0);
+        Transform enemyPlayedMagnus = playedMagnusSpace.GetChild(1);
+
+        while (playerPlayedMagnus.childCount > 0) {
+            GameObject card = playerPlayedMagnus.GetChild(0).gameObject;
             card.GetComponent<Magnus>().Reset();
             card.transform.SetParent(null, true);
             card.transform.localScale = new Vector3(1, 1, 1);
             Discard(card);
         }
+
+        
+        while (enemyPlayedMagnus.childCount > 0) {
+            GameObject card = enemyPlayedMagnus.GetChild(0).gameObject;
+            card.transform.SetParent(null, true); //still necessary despite destroy
+            Destroy(card);
+        }
+        
     }
 
     private void ReInitDeck() {
@@ -194,32 +225,65 @@ public class GameManager : MonoBehaviour {
     }
 
     private void ProcessMagnus() {
-        GameObject currentMagnus = currMagnusSpace.GetChild(0).gameObject;
+        Transform playerPlayedMagnus = playedMagnusSpace.GetChild(0);
+        Transform enemyPlayedMagnus = playedMagnusSpace.GetChild(1);
+        Transform playerCurrMagnus = currMagnusSpace.GetChild(0);
+        Transform enemyCurrMagnus = currMagnusSpace.GetChild(1);
+
         ShiftPlayedCards();
-        currentMagnus.transform.SetParent(playedMagnusSpace, true);
-        currentMagnus.transform.position = playedMagnusSpace.position;
-        currentMagnus.transform.localScale = new Vector3(1, 1, 1);
+        if (playerCurrMagnus.childCount != 0) {
+            GameObject currentMagnus = playerCurrMagnus.GetChild(0).gameObject;
+            currentMagnus.transform.SetParent(playerPlayedMagnus, true);
+            currentMagnus.transform.position = playedMagnusSpace.position;
+            currentMagnus.transform.localScale = new Vector3(1, 1, 1);
+        }
+        if (enemyCurrMagnus.childCount != 0) {
+            GameObject currentMagnus = enemyCurrMagnus.GetChild(0).gameObject;
+            currentMagnus.transform.SetParent(enemyPlayedMagnus, true);
+            currentMagnus.transform.position = playedMagnusSpace.position;
+            currentMagnus.transform.localScale = new Vector3(1, 1, 1);
+        }
 
         if (nextMagnusSpace.childCount != 0) {
             GameObject nextMagnus = nextMagnusSpace.GetChild(0).gameObject;
-            nextMagnus.transform.SetParent(currMagnusSpace, true);
+            nextMagnus.transform.SetParent(playerCurrMagnus, true);
             nextMagnus.transform.position = currMagnusSpace.position;
         }
 
         //no more cards left in queue, end turn
-        if (currMagnusSpace.childCount == 0) {
+        if (playerCurrMagnus.childCount == 0 && isPlayerTurn) {
+            EndTurn();
+        }
+        else if (enemyCurrMagnus.childCount == 0 && !isPlayerTurn) {
             EndTurn();
         }
     }
 
     private void ShiftPlayedCards() {
-        if (playedMagnusSpace.childCount > 0) {
+        Transform playerPlayedMagnus = playedMagnusSpace.GetChild(0);
+        Transform enemyPlayedMagnus = playedMagnusSpace.GetChild(1);
 
-            float magnusWidth = playedMagnusSpace.GetChild(0).GetComponent<Magnus>().GetWidth();
+        if (playerPlayedMagnus.childCount > 0) {
+            float magnusWidth = playerPlayedMagnus.GetChild(0).GetComponent<Magnus>().GetWidth();
 
-            for (int i = 0; i < playedMagnusSpace.childCount; i++) {
-                Vector3 origPosition = playedMagnusSpace.GetChild(i).position;
-                playedMagnusSpace.GetChild(i).position = new Vector3(origPosition.x + magnusWidth, origPosition.y, origPosition.z);
+            for (int i = 0; i < playerPlayedMagnus.childCount; i++) {
+                Vector3 origPosition = playerPlayedMagnus.GetChild(i).position;
+                playerPlayedMagnus.GetChild(i).position = new Vector3(origPosition.x + magnusWidth, origPosition.y, origPosition.z);
+            }
+        }
+
+        if (enemyPlayedMagnus.childCount > 0) {
+            Transform cardGraphic = enemyPlayedMagnus.GetChild(0).GetChild(0);
+            float magnusWidth = cardGraphic.GetComponent<SpriteRenderer>().sprite.bounds.size.x * cardGraphic.localScale.x;
+            Transform ancestor = enemyPlayedMagnus.parent;
+            while (ancestor != null) {
+                magnusWidth *= ancestor.localScale.x;
+                ancestor = ancestor.parent;
+            }
+
+            for (int i = 0; i < enemyPlayedMagnus.childCount; i++) {
+                Vector3 origPosition = enemyPlayedMagnus.GetChild(i).position;
+                enemyPlayedMagnus.GetChild(i).position = new Vector3(origPosition.x + magnusWidth, origPosition.y, origPosition.z);
             }
         }
     }
@@ -243,13 +307,15 @@ public class GameManager : MonoBehaviour {
         if (!shuffleTurn) {
             battleResults.gameObject.SetActive(true);
         }
+
+        isPlayerTurn = !isPlayerTurn;
     }
 
     private void HandlePrizes() {
         foreach (Transform child in prizeArea) {
             Destroy(child.gameObject);
         }
-        List<Prize> prizes = PrizePercentageCalculator.instance.calculateBonus(playedMagnus);
+        List<Prize> prizes = PrizePercentageCalculator.instance.CalculateBonus(playedMagnus);
         foreach (Prize prize in prizes) {
             Transform element = Instantiate(prizeElementPrefab, prizeArea);
             element.Find("PrizeName").GetComponent<Text>().text = prize.name;
@@ -266,7 +332,7 @@ public class GameManager : MonoBehaviour {
         battleResults.gameObject.SetActive(false);
 
         //No cards in deck, spend a turn reshuffling the deck
-        if (deck.Count == 0) {
+        if (deck.Count == 0 && isPlayerTurn) {
             shuffleTurn = true;
             message.gameObject.SetActive(true);
             message.GetComponent<Text>().text = "Shuffling the Deck";
@@ -287,14 +353,33 @@ public class GameManager : MonoBehaviour {
         else {
             handCursor.Show();
             deckCapacityBar.gameObject.SetActive(true);
-            firstMoveDone = false;
-            firstMoveTimeLimit = turnTimeLimit;
-            timeLimit.gameObject.SetActive(true);
-            timeLimit.GetChild(1).GetComponent<Text>().text = "30.0";
+
+            if (isPlayerTurn) {
+                firstMoveDone = false;
+                firstMoveTimeLimit = 5f;
+                timeLimit.gameObject.SetActive(true);
+                timeLimit.GetChild(1).GetComponent<Text>().text = "05.0";
+            }
+            else {
+                enemyNumAttacks = enemy.NumAttacks();
+                EnemyAttack();
+                lastTimeProcessed = Time.time;
+            }
+
             turnStarted = true;
             turnDone = false;
             handCursor.SetCanSelect(true);
             handCursor.ResetNumCardsPlayed();
         }
+    }
+
+    private void EnemyAttack() {
+        GameObject enemyCard = (GameObject)Instantiate(enemyMagnusPrefab, Vector3.zero, Quaternion.identity);
+        Transform enemyCurrMagnus = currMagnusSpace.GetChild(1);
+        enemyCard.transform.SetParent(enemyCurrMagnus, true);
+        enemyCard.transform.position = enemyCurrMagnus.position;
+        enemyCard.transform.localScale = new Vector3(1, 1, 1);
+
+        enemyNumAttacks--;
     }
 }

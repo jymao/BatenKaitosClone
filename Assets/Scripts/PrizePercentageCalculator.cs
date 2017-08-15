@@ -68,19 +68,19 @@ public class PrizePercentageCalculator : MonoBehaviour {
     [Header("8 Straight")]
     public Combo straight8;
 
-    public List<Prize> calculateBonus(List<PlayedMagnus> playedMagnus) {
-        if (playedMagnus.Count == 1) {
+    public List<Prize> CalculateBonus(List<PlayedMagnus> playedMagnus) {
+        if (playedMagnus.Count < 2) {
             return new List<Prize>();
         }
-        if (isStraight(playedMagnus)) {
+        if (IsStraight(playedMagnus)) {
             List<Prize> singleStraightPrize = new List<Prize>();
-            singleStraightPrize.Add(getStraightPrize(playedMagnus.Count));
+            singleStraightPrize.Add(GetStraightPrize(playedMagnus.Count));
             return singleStraightPrize;
         }
-        return getSameCardPrizes(playedMagnus);
+        return GetSameCardPrizes(playedMagnus);
     }
 
-    private bool isStraight(List<PlayedMagnus> playedMagnus) {
+    private bool IsStraight(List<PlayedMagnus> playedMagnus) {
         int straightLength = playedMagnus.Count;
         int previousValue = playedMagnus[0].spiritNumber;
         bool? increasingStraight = null;
@@ -108,7 +108,7 @@ public class PrizePercentageCalculator : MonoBehaviour {
         return true;
     }
         
-    List<Prize> getSameCardPrizes(List<PlayedMagnus> playedMagnus) {
+    List<Prize> GetSameCardPrizes(List<PlayedMagnus> playedMagnus) {
         // Check for same cards
         playedMagnus.Sort((a, b) => a.spiritNumber - b.spiritNumber);
         List<SameCardType> types = new List<SameCardType>();
@@ -125,12 +125,12 @@ public class PrizePercentageCalculator : MonoBehaviour {
                     break;
                 }
                 if (streak >= 2) {
-                    types.Add(getSameCardTier(streak));
+                    types.Add(GetSameCardTier(streak));
                     streak = 1;
                 }
             }
             if (i == playedMagnus.Count - 1 && streak >= 2) {
-                types.Add(getSameCardTier(streak));
+                types.Add(GetSameCardTier(streak));
             }
             prev = curr;
         }
@@ -179,7 +179,7 @@ public class PrizePercentageCalculator : MonoBehaviour {
         return prizes;
     }
 
-    private Prize getStraightPrize(int size) {
+    private Prize GetStraightPrize(int size) {
         switch (size) {
         case 2: return new Prize("2 Straight", straight2);
         case 3: return new Prize("3 Straight", straight3);
@@ -192,7 +192,7 @@ public class PrizePercentageCalculator : MonoBehaviour {
         }
     }
 
-    private SameCardType getSameCardTier(int num) {
+    private SameCardType GetSameCardTier(int num) {
         switch (num) {
         case 2: return SameCardType.Card2;
         case 3: return SameCardType.Card3;
