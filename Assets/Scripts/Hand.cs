@@ -39,13 +39,6 @@ public class Hand : MonoBehaviour {
     public void Initialize() {
         //draw new hand from deck
         NewHand();
-
-        selectedMagnus = cards[currentPosition];
-        if (selectedMagnus != null) {
-            Transform cardGraphic = selectedMagnus.transform.GetChild(0);
-            cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
-        }
-
 	}
 	
 	// Update is called once per frame
@@ -87,16 +80,10 @@ public class Hand : MonoBehaviour {
 	}
 
     private void moveToPosition(int position) {
-        Transform cardGraphic = null;
-        if (selectedMagnus != null) {
-            cardGraphic = selectedMagnus.transform.GetChild(0);
-            cardGraphic.GetComponent<SpriteRenderer>().color = Color.white;
-        }
         currentPosition = position;
         selectedMagnus = cards[currentPosition];
         SetDescription(selectedMagnus);
-        cardGraphic = selectedMagnus.transform.GetChild(0);
-        cardGraphic.GetComponent<SpriteRenderer>().color = Color.yellow;
+        
         transform.position = new Vector3(selectedMagnus.transform.position.x, transform.position.y, transform.position.z);
         lastTimeMoved = Time.time;
     }
@@ -108,7 +95,7 @@ public class Hand : MonoBehaviour {
             DrawCard();
         }
 
-        //restore previous card's sprite color and get proper position in new hand
+        //get proper position in new hand
         moveToPosition(currentPosition);
     }
 
@@ -116,6 +103,12 @@ public class Hand : MonoBehaviour {
         while (cards.Count > 0) {
             gameManager.Discard(cards[0]);
             cards.RemoveAt(0);
+        }
+    }
+
+    public void ValidateHand() {
+        for (int i = 0; i < cards.Count; i++) {
+            gameManager.ValidateCard(cards[i]);
         }
     }
 
@@ -148,6 +141,14 @@ public class Hand : MonoBehaviour {
         Magnus magnus = selectedMagnus.GetComponent<Magnus>();
         magnus.ChooseNumber(spiritNumberIndex);
         gameManager.PlayMagnus(new PlayedMagnus(magnus, magnus.GetSpiritNumber(spiritNumberIndex)));
+        ValidateHand();
+
+        //Choosing a finisher special or an invalid Magnus ends the attack combo
+        if (gameManager.GetIsPlayerTurn()) {
+            if (!magnus.GetIsValid() || magnus.GetIsFinisher()) {
+                SetCanSelect(false);
+            }
+        }
 
         Transform playerCurrMagnus = currMagnusSpace.GetChild(0);
         if (playerCurrMagnus.childCount == 0) {
@@ -181,13 +182,8 @@ public class Hand : MonoBehaviour {
         if (!cardDrawn && currentPosition == cards.Count) {
             //no more cards in hand
             if (currentPosition == 0) {
-                //Revert chosen card's color
-                if (selectedMagnus != null) {
-                    Transform cardGraphic = selectedMagnus.transform.GetChild(0);
-                    cardGraphic.GetComponent<SpriteRenderer>().color = Color.white;
-                }
                 SetDescription(null);
-                //Hide cursor maybe?
+                Hide();
             }
             else {
                 moveToPosition(currentPosition - 1);

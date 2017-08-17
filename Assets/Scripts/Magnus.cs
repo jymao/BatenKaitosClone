@@ -37,6 +37,7 @@ public class Magnus : MonoBehaviour {
     public int GetAtkCombo() { return atkCombo; }
     public int GetDefCombo() { return defCombo; }
     public Element GetElement() { return element; }
+    public bool GetIsValid() { return isValid; }
     public float GetWidth() { 
         Transform cardGraphic = transform.GetChild(0);
         float width = cardGraphic.GetComponent<SpriteRenderer>().sprite.bounds.size.x * cardGraphic.localScale.x;
@@ -101,7 +102,7 @@ public class Magnus : MonoBehaviour {
         isValid = b;
         Transform cardGraphic = transform.GetChild(0);
         if (!isValid) {
-            cardGraphic.GetComponent<SpriteRenderer>().color = Color.gray;
+            cardGraphic.GetComponent<SpriteRenderer>().color = new Color(.2f, .2f, .2f);
         }
         else {
             cardGraphic.GetComponent<SpriteRenderer>().color = Color.white;
@@ -144,6 +145,7 @@ public class Magnus : MonoBehaviour {
         for (int i = 1; i < transform.childCount; i++) {
             transform.GetChild(i).GetComponent<SpriteRenderer>().enabled = true;
         }
+        SetValid(true);
     }
 
     public void Hide() {

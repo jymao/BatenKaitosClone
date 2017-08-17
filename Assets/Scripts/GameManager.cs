@@ -21,7 +21,13 @@ public class GameManager : MonoBehaviour {
     private bool turnDone = false;
     private bool shuffleTurn = false;
 
+    private bool playedAttack = false;
+    private bool playedHeal = false;
+    private bool playedInvalid = false;
+    private bool playedFinisher = false;
+
     private int enemyNumAttacks = 0;
+    private int currCombo = 1;
 
     private string[] magnusList;
     private List<GameObject> deck = new List<GameObject>();
@@ -51,7 +57,26 @@ public class GameManager : MonoBehaviour {
     public void SetFirstMoveDone(bool b) { firstMoveDone = b; }
     public void SetTurnStarted(bool b) { turnStarted = b; }
     public void SetTimeProcessed() { lastTimeProcessed = Time.time; }
-    public void PlayMagnus(PlayedMagnus magnus) { playedMagnus.Add(magnus); }
+    public void PlayMagnus(PlayedMagnus magnus) { 
+        playedMagnus.Add(magnus);
+        if (!playedHeal && !playedAttack) {
+            if (magnus.magnus.GetIsAtk()) {
+                playedAttack = true;
+            }
+            else if (magnus.magnus.GetIsHeal()) {
+                playedHeal = true;
+            }
+        }
+
+        playedFinisher = magnus.magnus.GetIsFinisher();
+
+        if (magnus.magnus.GetIsValid()) {
+            currCombo++;
+        }
+        else {
+            playedInvalid = true;
+        }
+    }
 
     // Use this for initialization
     void Start() {
@@ -71,14 +96,18 @@ public class GameManager : MonoBehaviour {
         deck.Add(CreateMagnus("Gladius"));
         deck.Add(CreateMagnus("Water_Blade"));
 
-        for (int i = 0; i < 10; i++) {
+        for (int i = 0; i < 5; i++) {
             deck.Add(CreateMagnus("Cherries"));
+        }
+        for (int i = 0; i < 5; i++) {
+            deck.Add(CreateMagnus("Dimension_Blade"));
         }
 
         ShuffleDeck();
         StartCoroutine(StartTurn());
 
         handCursor.Initialize();
+
     }
 
     // Update is called once per frame
@@ -108,7 +137,9 @@ public class GameManager : MonoBehaviour {
             //Process attacks
             if (firstMoveDone && !turnDone) {
                 if (Time.time - lastTimeProcessed > CARD_DELAY) {
-                    handCursor.SetCanSelect(true);
+                    if (!playedInvalid && !playedFinisher) {
+                        handCursor.SetCanSelect(true);
+                    }
                     ProcessMagnus();
                     lastTimeProcessed = Time.time;
                 }
@@ -175,11 +206,56 @@ public class GameManager : MonoBehaviour {
         }
     }
 
+    public void ValidateCard(GameObject card) {
+        if (card != null) {
+            Magnus cardScript = card.GetComponent<Magnus>();
+
+            if (playedInvalid) {
+                cardScript.SetValid(false);
+                return;
+            }
+
+            if (isPlayerTurn) {
+                //def only magnus invalid
+                if (cardScript.GetIsDef() && !cardScript.GetIsAtk()) {
+                    cardScript.SetValid(false);
+                }
+                //atk combo too high
+                else if (cardScript.GetAtkCombo() > currCombo) {
+                    cardScript.SetValid(false);
+                }
+                //heal magnus invalid after attacking or attack magnus after healing
+                else if((cardScript.GetIsHeal() && playedAttack) || (cardScript.GetIsAtk() && playedHeal)) {
+                    cardScript.SetValid(false);
+                }
+                else {
+                    cardScript.SetValid(true);
+                }
+            }
+            else {
+                //atk only magnus invalid
+                //heal magnus invalid
+                if (!cardScript.GetIsDef()) {
+                    cardScript.SetValid(false);
+                }
+                //def combo too high
+                else if(cardScript.GetDefCombo() > currCombo) {
+                    cardScript.SetValid(false);
+                }
+                else {
+                    cardScript.SetValid(true);
+                }
+            }
+        }
+    }
+
     public GameObject DrawCard() {
         GameObject card = null;
         if (deck.Count != 0) {
             card = deck[0];
             deck.RemoveAt(0);
+
+            ValidateCard(card);
 
             string cardsRemaining = deck.Count.ToString();
             if (deck.Count < 10) {
@@ -368,6 +444,12 @@ public class GameManager : MonoBehaviour {
 
             turnStarted = true;
             turnDone = false;
+            currCombo = 1;
+            playedAttack = false;
+            playedHeal = false;
+            playedInvalid = false;
+            playedFinisher = false;
+            handCursor.ValidateHand();
             handCursor.SetCanSelect(true);
             handCursor.ResetNumCardsPlayed();
         }
