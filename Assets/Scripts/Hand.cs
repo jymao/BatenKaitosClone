@@ -18,10 +18,10 @@ public class Hand : MonoBehaviour {
     private int numCardsPlayed = 0;
 
     public GameManager gameManager;
-    public Transform bottomBar;
-    public Transform magnusHandSpace;
-    public Transform nextMagnusSpace;
-    public Transform currMagnusSpace;
+    public Transform bottomBar; //Contains description for currently selected Magnus
+    public Transform magnusHandSpace; //Newly drawn cards are moved here
+    public Transform nextMagnusSpace; //Chosen cards are moved here if currMagnusSpace is occupied (basically queued up)
+    public Transform currMagnusSpace; //First chosen card is moved here and nextMagnusSpace cards are moved here as cards are processed
 
     public void SetTurnEnded(bool b) { turnEnded = b; }
     public void ResetNumCardsPlayed() { numCardsPlayed = 0; }
@@ -49,6 +49,7 @@ public class Hand : MonoBehaviour {
             lastTimeMoved = 0;
         }
 
+        //Moving hand cursor
         if (canMove && Time.time - lastTimeMoved >= MOVE_DELAY) {
             if (inputX > 0 && currentPosition < cards.Count - 1) {
                 moveToPosition(currentPosition + 1);
@@ -58,22 +59,27 @@ public class Hand : MonoBehaviour {
             }
         }
 
+        //Selecting magnus. Multiple ways to select for each spirit number on the card.
         if (canSelect && cards.Count != 0) {
             if ((gameManager.GetIsPlayerTurn() && numCardsPlayed < 9) || (!gameManager.GetIsPlayerTurn() && gameManager.GetEnemyNumAttacks() > 0)) {
                 if (!turnEnded) {
                     int spiritNumberCount = selectedMagnus.GetComponent<Magnus>().GetSpiritNumberCount();
-                    if (Input.GetKeyDown(KeyCode.Alpha1) || Input.GetKeyDown(KeyCode.Space)) {
+                    if (Input.GetKeyDown(KeyCode.O) || Input.GetKeyDown(KeyCode.Space)) {
                         ChooseCard(0);
-                    } else if (Input.GetKeyDown(KeyCode.Alpha2) && spiritNumberCount >= 2) {
+                    } else if (Input.GetKeyDown(KeyCode.J) && spiritNumberCount >= 2) {
                         ChooseCard(1);
-                    } else if (Input.GetKeyDown(KeyCode.Alpha3) && spiritNumberCount >= 3) {
+                    } else if (Input.GetKeyDown(KeyCode.I) && spiritNumberCount >= 3) {
                         ChooseCard(2);
-                    } else if (Input.GetKeyDown(KeyCode.Alpha4) && spiritNumberCount == 4) {
+                    } else if (Input.GetKeyDown(KeyCode.K) && spiritNumberCount == 4) {
                         ChooseCard(3);
                     }
                 }
                 else {
-                    turnEnded = false;
+                    //Input was used close the battle results screen.
+                    //Prevents a card from being selected instantly when the turn starts.
+                    if (Input.GetKeyDown(KeyCode.Space)) {
+                        turnEnded = false;
+                    }
                 }
             }
         }
@@ -106,12 +112,15 @@ public class Hand : MonoBehaviour {
         }
     }
 
+    //Set valid status for each card in hand.
+    //A Magnus's valid status can change depending on the turn and what cards have been played.
     public void ValidateHand() {
         for (int i = 0; i < cards.Count; i++) {
             gameManager.ValidateCard(cards[i]);
         }
     }
 
+    //Draws a new card from the deck to the hand. Returns false is deck was empty and no card was drawn.
     private bool DrawCard() {
         GameObject card = gameManager.DrawCard();
 
@@ -124,6 +133,7 @@ public class Hand : MonoBehaviour {
         return false;
     }
 
+    //Shifts cards in hand over to make space for newly drawn card.
     private void ShiftCards(int start, int end) {
         for (int i = start; i <= end; i++) {
             Magnus magnusScript = cards[i].GetComponent<Magnus>();
@@ -131,7 +141,9 @@ public class Hand : MonoBehaviour {
         }
     }
 
+    //Choose a card and its spirit number
     private void ChooseCard(int spiritNumberIndex) {
+        //First card played cancels the timer for the player to make a move.
         if (!gameManager.GetFirstMoveDone()) {
             gameManager.SetFirstMoveDone(true);
             gameManager.SetTimeProcessed();
@@ -150,6 +162,7 @@ public class Hand : MonoBehaviour {
             }
         }
 
+        //Move the Magnus to the appropriate space
         Transform playerCurrMagnus = currMagnusSpace.GetChild(0);
         if (playerCurrMagnus.childCount == 0) {
             selectedMagnus.transform.position = currMagnusSpace.position;
@@ -161,7 +174,7 @@ public class Hand : MonoBehaviour {
             selectedMagnus.transform.SetParent(nextMagnusSpace, true);
             selectedMagnus.transform.localScale = new Vector3(1, 1, 1);
 
-            SetCanSelect(false);
+            SetCanSelect(false); //Magnus queue is full, wait to select more
         }
         cards.RemoveAt(currentPosition);
 

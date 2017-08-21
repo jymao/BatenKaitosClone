@@ -69,9 +69,19 @@ public class PrizePercentageCalculator : MonoBehaviour {
     public Combo straight8;
 
     public List<Prize> CalculateBonus(List<PlayedMagnus> playedMagnus) {
+        //Any played invalid magnus cancels prizes for this round
+        for (int i = 0; i < playedMagnus.Count; i++) {
+            if (!playedMagnus[i].magnus.GetIsValid()) {
+                return new List<Prize>();
+            }
+        }
+
+        //Prizes only occur for more than 2 played cards
         if (playedMagnus.Count < 2) {
             return new List<Prize>();
         }
+
+        //Straights are exclusive prizes and can't be mixed with other prizes.
         if (IsStraight(playedMagnus)) {
             List<Prize> singleStraightPrize = new List<Prize>();
             singleStraightPrize.Add(GetStraightPrize(playedMagnus.Count));
