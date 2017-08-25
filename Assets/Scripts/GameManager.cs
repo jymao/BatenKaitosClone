@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System;
 
 public class GameManager : MonoBehaviour {
@@ -33,9 +34,6 @@ public class GameManager : MonoBehaviour {
     private Dictionary<Element, int> elementDamage = new Dictionary<Element,int>();
     private Dictionary<Element, int> enemyElementDamage = new Dictionary<Element, int>();
 
-    private string[] magnusList; //lines of MagnusList.txt
-    private List<GameObject> deck = new List<GameObject>();
-    private List<GameObject> graveyard = new List<GameObject>(); //previously played cards
     private List<PlayedMagnus> playedMagnus = new List<PlayedMagnus>();
 
     public GameObject magnusPrefab;
@@ -43,6 +41,7 @@ public class GameManager : MonoBehaviour {
 
     public Player player;
     public Enemy enemy;
+    private Deck deck;
 
     public Hand handCursor;
     public Transform deckSpace; //cards in deck and graveyard hidden off-screen
@@ -55,6 +54,7 @@ public class GameManager : MonoBehaviour {
     public Transform battleResults;
     public Transform prizeArea;
     public Transform prizeElementPrefab;
+    public GameObject editorButton;
 
     public bool GetIsPlayerTurn() { return isPlayerTurn; }
     public bool GetFirstMoveDone() { return firstMoveDone; }
@@ -83,46 +83,20 @@ public class GameManager : MonoBehaviour {
 
     // Use this for initialization
     void Start() {
-        TextAsset magnusListAsset = Resources.Load<TextAsset>("MagnusList");
-
-        string[] newline = { Environment.NewLine };
-        //char[] newline = { '\n' };
-        magnusList = magnusListAsset.text.Split(newline, StringSplitOptions.RemoveEmptyEntries);
-
-        deck.Add(CreateMagnus("Beer"));
-        deck.Add(CreateMagnus("Air_Slash"));
-        deck.Add(CreateMagnus("Sea_Bream"));
-        deck.Add(CreateMagnus("Saber"));
-        deck.Add(CreateMagnus("Blue_Storm"));
-        deck.Add(CreateMagnus("Flametongue"));
-        deck.Add(CreateMagnus("Holy_Armor"));
-        deck.Add(CreateMagnus("Gladius"));
-        deck.Add(CreateMagnus("Water_Blade"));
-        deck.Add(CreateMagnus("Lord_of_the_Wind"));
-        deck.Add(CreateMagnus("Scale_Mail"));
-        deck.Add(CreateMagnus("Skull_Mask"));
-        deck.Add(CreateMagnus("Fangs_of_Light"));
-
-        for (int i = 0; i < 5; i++) {
-            deck.Add(CreateMagnus("Solar_Saber"));
+        GameObject deckObject = GameObject.Find("Deck");
+        if (deckObject == null) {
+            editorButton.SetActive(true);
+            message.gameObject.SetActive(true);
+            message.GetComponent<Text>().text = "No deck found, create one in the editor.";
         }
-        for (int i = 0; i < 5; i++) {
-            deck.Add(CreateMagnus("Dimension_Blade"));
-        }
-        for (int i = 0; i < 5; i++) {
-            deck.Add(CreateMagnus("Marvelous_Sword"));
-        }
-        for (int i = 0; i < 5; i++) {
-            deck.Add(CreateMagnus("Blood_Sword"));
-        }
-        for (int i = 0; i < 5; i++) {
-            deck.Add(CreateMagnus("Cetaka's_Sword"));
-        }
+        else {
+            deckObject.transform.position = deckSpace.position;
+            deck = deckObject.GetComponent<Deck>();
+            deck.ShuffleDeck();
+            StartCoroutine(StartTurn());
 
-        ShuffleDeck();
-        StartCoroutine(StartTurn());
-
-        handCursor.Initialize();
+            handCursor.Initialize();
+        }
 
     }
 
@@ -177,53 +151,6 @@ public class GameManager : MonoBehaviour {
         }
     }
 
-    private GameObject CreateMagnus(string name) {
-        GameObject magnus = (GameObject)Instantiate(magnusPrefab, deckSpace.position, Quaternion.identity);
-        Magnus magnusScript = magnus.GetComponent<Magnus>();
-
-        for (int i = 0; i < magnusList.Length; i++) {
-            
-            if (magnusList[i] == name) {
-                magnusScript.SetName(name);
-                magnusScript.SetIsAtk(Convert.ToBoolean(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetIsDef(Convert.ToBoolean(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetIsHeal(Convert.ToBoolean(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetIsFinisher(Convert.ToBoolean(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetNeutralStat(Convert.ToInt32(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetElementStat(Convert.ToInt32(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetAtkCombo(Convert.ToInt32(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetDefCombo(Convert.ToInt32(GetPropertyValue(magnusList[++i])));
-                magnusScript.SetElement(GetPropertyValue(magnusList[++i]));
-                
-                Sprite s = Resources.Load<Sprite>("Images/Magnus/" + name);
-                magnusScript.SetGraphic(s);
-
-                break;
-            }
-        }
-
-        return magnus;
-    }
-
-    //Helper method for CreateMagnus
-    private string GetPropertyValue(string line) {
-        char[] space = { ' ' };
-        string[] words = line.Split(space, StringSplitOptions.RemoveEmptyEntries);
-        return words[2];
-    }
-
-    //Shuffle Magnus deck using the Fisher-Yates shuffle algorithm
-    private void ShuffleDeck() {
-        int count = deck.Count;
-        while (count > 1) {
-            count--;
-            int k = UnityEngine.Random.Range(0, count+1);
-            GameObject temp = deck[k];
-            deck[k] = deck[count];
-            deck[count] = temp;
-        }
-    }
-
     //Set Magnus' valid state based on current battle round
     public void ValidateCard(GameObject card) {
         if (card != null) {
@@ -269,15 +196,14 @@ public class GameManager : MonoBehaviour {
 
     public GameObject DrawCard() {
         GameObject card = null;
-        if (deck.Count != 0) {
-            card = deck[0];
-            deck.RemoveAt(0);
+        if (deck.GetCount() != 0) {
+            card = deck.DrawCard();
 
             ValidateCard(card);
 
-            string cardsRemaining = deck.Count.ToString();
-            if (deck.Count < 10) {
-                cardsRemaining = "0" + deck.Count.ToString();
+            string cardsRemaining = deck.GetCount().ToString();
+            if (deck.GetCount() < 10) {
+                cardsRemaining = "0" + deck.GetCount().ToString();
             }
             deckCapacityBar.GetChild(2).GetComponent<Text>().text = cardsRemaining;
 
@@ -287,7 +213,7 @@ public class GameManager : MonoBehaviour {
     }
 
     public void Discard(GameObject card) {
-        graveyard.Add(card);
+        deck.AddToGraveyard(card);
         card.GetComponent<Magnus>().Show(); //card was invisible due to hand being hidden
         card.transform.position = deckSpace.position;
     }
@@ -310,13 +236,6 @@ public class GameManager : MonoBehaviour {
             Destroy(card);
         }
         
-    }
-
-    private void ReInitDeck() {
-        while(graveyard.Count > 0) {
-            deck.Add(graveyard[0]);
-            graveyard.RemoveAt(0);
-        }
     }
 
     private void ProcessMagnus() {
@@ -764,56 +683,59 @@ public class GameManager : MonoBehaviour {
         DiscardPlayedMagnus();
         battleResults.gameObject.SetActive(false);
 
-        //No cards in deck, spend a turn reshuffling the deck
-        if (deck.Count == 0 && isPlayerTurn) {
-            shuffleTurn = true;
-            message.gameObject.SetActive(true);
-            message.GetComponent<Text>().text = "Shuffling the Deck";
-            yield return new WaitForSeconds(2f);
+        CheckGameOver();
+        if (!isGameOver) {
+            //No cards in deck, spend a turn reshuffling the deck
+            if (deck.GetCount() == 0 && isPlayerTurn) {
+                shuffleTurn = true;
+                message.gameObject.SetActive(true);
+                message.GetComponent<Text>().text = "Shuffling the Deck";
+                yield return new WaitForSeconds(2f);
 
-            EndTurn();
-            handCursor.SetTurnEnded(false); //no results screen for shuffling turn, so cancel extra button input requirement to select a card
-            handCursor.DiscardHand();
-            ReInitDeck();
-            ShuffleDeck();
-            handCursor.NewHand();
-            handCursor.Hide();
+                EndTurn();
+                handCursor.SetTurnEnded(false); //no results screen for shuffling turn, so cancel extra button input requirement to select a card
+                handCursor.DiscardHand();
+                deck.ReInitDeck();
+                deck.ShuffleDeck();
+                handCursor.NewHand();
+                handCursor.Hide();
 
-            StartCoroutine(StartTurn());
-            shuffleTurn = false;
-        }
-        //Normal battle turn
-        else {
-            handCursor.Show();
-            deckCapacityBar.gameObject.SetActive(true);
-
-            if (isPlayerTurn) {
-                firstMoveDone = false;
-                firstMoveTimeLimit = 5f;
-                timeLimit.gameObject.SetActive(true);
-                timeLimit.GetChild(1).GetComponent<Text>().text = "05.0";
+                StartCoroutine(StartTurn());
+                shuffleTurn = false;
             }
+            //Normal battle turn
             else {
-                enemyNumAttacks = enemy.NumAttacks();
-                EnemyAttack();
-                lastTimeProcessed = Time.time;
+                handCursor.Show();
+                deckCapacityBar.gameObject.SetActive(true);
+
+                if (isPlayerTurn) {
+                    firstMoveDone = false;
+                    firstMoveTimeLimit = 5f;
+                    timeLimit.gameObject.SetActive(true);
+                    timeLimit.GetChild(1).GetComponent<Text>().text = "05.0";
+                }
+                else {
+                    enemyNumAttacks = enemy.NumAttacks();
+                    EnemyAttack();
+                    lastTimeProcessed = Time.time;
+                }
+
+                turnStarted = true;
+                turnDone = false;
+                currCombo = 1;
+
+                ResetElementDamage();
+                finalDamage = 0;
+
+                playedAttack = false;
+                playedHeal = false;
+                playedInvalid = false;
+                playedFinisher = false;
+
+                handCursor.ValidateHand();
+                handCursor.SetCanSelect(true);
+                handCursor.ResetNumCardsPlayed();
             }
-
-            turnStarted = true;
-            turnDone = false;
-            currCombo = 1;
-
-            ResetElementDamage();
-            finalDamage = 0;
-
-            playedAttack = false;
-            playedHeal = false;
-            playedInvalid = false;
-            playedFinisher = false;
-
-            handCursor.ValidateHand();
-            handCursor.SetCanSelect(true);
-            handCursor.ResetNumCardsPlayed();
         }
     }
 
@@ -843,5 +765,27 @@ public class GameManager : MonoBehaviour {
         enemyCard.transform.localScale = new Vector3(1, 1, 1);
 
         enemyNumAttacks--;
+    }
+
+    public void ToDeckEditor() {
+        if (deck != null) {
+            Destroy(deck.gameObject);
+        }
+        SceneManager.LoadScene(0);
+    }
+
+    private void CheckGameOver() {
+        if (enemy.GetHealth() == 0) {
+            isGameOver = true;
+            message.gameObject.SetActive(true);
+            message.GetComponent<Text>().text = "You Win";
+            editorButton.SetActive(true);
+        }
+        else if (player.GetHealth() == 0) {
+            isGameOver = true;
+            message.gameObject.SetActive(true);
+            message.GetComponent<Text>().text = "You Lose";
+            editorButton.SetActive(true);
+        }
     }
 }

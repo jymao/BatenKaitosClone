@@ -153,7 +153,6 @@ public class Hand : MonoBehaviour {
         Magnus magnus = selectedMagnus.GetComponent<Magnus>();
         magnus.ChooseNumber(spiritNumberIndex);
         gameManager.PlayMagnus(new PlayedMagnus(magnus, magnus.GetSpiritNumber(spiritNumberIndex)));
-        ValidateHand();
 
         //Choosing a finisher special or an invalid Magnus ends the attack combo
         if (gameManager.GetIsPlayerTurn()) {
@@ -177,6 +176,7 @@ public class Hand : MonoBehaviour {
             SetCanSelect(false); //Magnus queue is full, wait to select more
         }
         cards.RemoveAt(currentPosition);
+        ValidateHand(); //validate the hand after played card is removed from the hand
 
         //selected card not rightmost card in hand, shift cards on right normally and cursor position stays the same
         if (currentPosition != cards.Count) {

@@ -2,6 +2,7 @@
 using System.Collections.Generic;
 using UnityEngine;
 using UnityEngine.UI;
+using UnityEngine.SceneManagement;
 using System;
 
 public class DeckEditor : MonoBehaviour {
@@ -33,6 +34,7 @@ public class DeckEditor : MonoBehaviour {
     public Transform descriptionBar;
     public Text deckText;
     public Transform cursor;
+    public Deck deckObject;
 
 	// Use this for initialization
 	void Start () {
@@ -462,4 +464,14 @@ public class DeckEditor : MonoBehaviour {
         deckText.text = "Deck: " + deckCount + "/" + MAX_DECK_SIZE;
     }
 
+    public void StartGame() {
+        //Add cards to deck object to send to game scene
+        for (int row = 0; row < deck.Count; row++) {
+            for (int col = 0; col < deck[row].Count; col++) {
+                deckObject.AddToDeck(deck[row][col]);
+            }
+        }
+
+        SceneManager.LoadScene(1);
+    }
 }
