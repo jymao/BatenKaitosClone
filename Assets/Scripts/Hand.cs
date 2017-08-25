@@ -52,10 +52,10 @@ public class Hand : MonoBehaviour {
         //Moving hand cursor
         if (canMove && Time.time - lastTimeMoved >= MOVE_DELAY) {
             if (inputX > 0 && currentPosition < cards.Count - 1) {
-                moveToPosition(currentPosition + 1);
+                MoveToPosition(currentPosition + 1);
             }
             if (inputX < 0 && currentPosition > 0) {
-                moveToPosition(currentPosition - 1);
+                MoveToPosition(currentPosition - 1);
             }
         }
 
@@ -85,7 +85,7 @@ public class Hand : MonoBehaviour {
         }
 	}
 
-    private void moveToPosition(int position) {
+    private void MoveToPosition(int position) {
         currentPosition = position;
         selectedMagnus = cards[currentPosition];
         SetDescription(selectedMagnus);
@@ -102,7 +102,7 @@ public class Hand : MonoBehaviour {
         }
 
         //get proper position in new hand
-        moveToPosition(currentPosition);
+        MoveToPosition(currentPosition);
     }
 
     public void DiscardHand() {
@@ -181,14 +181,14 @@ public class Hand : MonoBehaviour {
         //selected card not rightmost card in hand, shift cards on right normally and cursor position stays the same
         if (currentPosition != cards.Count) {
             ShiftCards(currentPosition, cards.Count - 1);
-            moveToPosition(currentPosition);
+            MoveToPosition(currentPosition);
         }
 
         bool cardDrawn = DrawCard();
 
         //cursor was rightmost, select newly drawn card
         if (cardDrawn && currentPosition == cards.Count - 1) {
-            moveToPosition(currentPosition);
+            MoveToPosition(currentPosition);
         }
 
         //cursor was rightmost and no new card drawn, move cursor left
@@ -199,7 +199,7 @@ public class Hand : MonoBehaviour {
                 Hide();
             }
             else {
-                moveToPosition(currentPosition - 1);
+                MoveToPosition(currentPosition - 1);
             }
         }
 

@@ -75,13 +75,10 @@ public class GameManager : MonoBehaviour {
         }
 
         playedFinisher = magnus.magnus.GetIsFinisher();
-
-        if (magnus.magnus.GetIsValid()) {
-            currCombo++;
-        }
-        else {
+        if (!magnus.magnus.GetIsValid()) {
             playedInvalid = true;
         }
+        currCombo++;
     }
 
     // Use this for initialization
@@ -232,15 +229,13 @@ public class GameManager : MonoBehaviour {
         if (card != null) {
             Magnus cardScript = card.GetComponent<Magnus>();
 
-            //All cards are invalid if an invalid card was played
-            if (playedInvalid) {
-                cardScript.SetValid(false);
-                return;
-            }
-
             if (isPlayerTurn) {
+                //All cards are invalid if an invalid card was played during player turn
+                if (playedInvalid) {
+                    cardScript.SetValid(false);
+                }
                 //def only magnus invalid
-                if (cardScript.GetIsDef() && !cardScript.GetIsAtk()) {
+                else if (cardScript.GetIsDef() && !cardScript.GetIsAtk()) {
                     cardScript.SetValid(false);
                 }
                 //atk combo too high
@@ -402,6 +397,7 @@ public class GameManager : MonoBehaviour {
             finalDamageText.text = "Final Damage: " + finalDamage;
             if(isPlayerTurn) {
                 if (playedHeal) {
+                    finalDamageText.text = "Final Recovery: " + finalDamage;
                     finalDamageText.color = new Color(0f / 255f, 255f / 255f, 65f / 255f);
                     player.IncreaseHealth(finalDamage);
                 }
